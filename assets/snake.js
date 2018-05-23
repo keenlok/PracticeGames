@@ -1,4 +1,4 @@
-let config = {
+/*let config = {
     type: Phaser.WEBGL,
     parent: 'phaser-example',
     width: 640,
@@ -9,27 +9,75 @@ let config = {
         create,
         update
     }
-};
-
-let snake;
-let food;
-let cursors;
-let score;
-
+};*/
 const UP = 0;
 const DOWN = 1; 
 const LEFT = 2;
 const RIGHT = 3;
+let score = 0;
+let scoreTest;
 
-let game = new Phaser.Game(config);
+let Menu = new Phaser.Class({
 
-function preload() {
+    Extends: Phaser.Scene,
+
+    initialize:
+
+    function Menu () {
+
+        Phaser.Scene.call(this, { key: 'menu' });
+        this.menu;
+    },
+
+    preload: function() {
+      
+        this.load.image('menu', 'static/games/snake/menu.png');
+    },
+
+    create: function() {
+      
+        this.menu = this.add.image(0, 0, 'menu').setOrigin(0);
+
+        this.input.once('pointerdown', function() {
+           this.scene.transition({
+                target: 'maingame',
+                onUpdate: this.transitionOut,
+                date: {x: 640, y: 480},
+            //game.scene.start('maingame');
+            });
+        }, this);
+    },
+
+    transitionOut: function(progress) {
+        this.menu.y = (6000 * progress);
+    }
+
+});
+
+let MainGame = new Phaser.Class({
+
+Extends: Phaser.Scene,
+
+initialize:
+
+function MainGame() {
+    Phaser.Scene.call(this, { key: 'maingame'});
+
+    let snake,
+    food,
+    cursors;
+
+    
+},
+
+preload: function () {
 
     this.load.image('food', '/static/games/snake/food.png');
     this.load.image('body', '/static/games/snake/body.png');
-}
+    this.load.spritesheet('spritesheet', '/static/games/snake/sprites32.png', {frameWidth: 32, frameHeight: 32});
+},
 
-function create () {
+create: function () {
 
     let Food = new Phaser.Class({
         Extends: Phaser.GameObjects.Image,
@@ -40,6 +88,7 @@ function create () {
             Phaser.GameObjects.Image.call(this, scene)
 
             this.setTexture ('food');
+            this.setTint('#F0F8FF');
             this.setPosition(x * 16, y * 16);
             this.setOrigin(0);
 
@@ -49,6 +98,8 @@ function create () {
         },
 
         eat: function() {
+            score++;
+            scoreText.setText('Score: '+ score);
             this.total++;
         }
            
@@ -61,9 +112,12 @@ function create () {
         function Snake (scene, x, y) {
             this.headPosition = new Phaser.Geom.Point(x, y);
             
+            // explain what the heck body is -- because it is nothing but some kind of group() invocation
             this.body = scene.add.group();
+            //this.body.setTint('	#F0F8FF');
 
-            this.head = this.body.create(x * 16, y * 16, 'body');
+            //this.head = this.body.create(x * 16, y * 16, 'body');
+            this.head = this.body.create(x * 16, y * 16, 'body')
             this.head.setOrigin(0);
 
             this.alive = true;
@@ -140,7 +194,6 @@ function create () {
 
                 this.alive = false;
 
-                game_over();
 
                 return false;
             }
@@ -186,17 +239,20 @@ function create () {
         
     });
 
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '16px', fill: '#000' });
+
     food = new Food (this, 3, 4);
 
     snake = new Snake (this, 8, 8);
 
     cursors = this.input.keyboard.createCursorKeys();
-}
+},
 
-function update (time, delta) {
+update: function (time, delta) {
 
     if (!snake.alive) {
         this.game_over();
+        return;
     }
 
     if (cursors.left.isDown) {
@@ -211,12 +267,12 @@ function update (time, delta) {
 
     if (snake.update(time)) {
         if (snake.collideWithFood(food)) {
-            repositionFood();
+            this.repositionFood();
         }
     }
-}
+},
 
-function repositionFood() {
+repositionFood: function () {
     let testGrid = [];
 
     for (let y = 0; y < 30; y++) {
@@ -249,5 +305,50 @@ function repositionFood() {
     else {
         return false;
     }
+},
+
+game_over: function() {
+    game.scene.start('game_over');
 }
 
+});
+
+let GameOver = new Phaser.Class({
+    Extends: Phaser.Scene,
+
+    initialize:
+
+    function() {
+        Phaser.Scene.call(this, {key: 'game_over'});
+    },
+
+    preload: function () {
+        this.load.image('gameover', '/static/games/snake/gameover.png');
+        this.endScreen;
+    },
+
+    create: function () {
+        this.endScreen = this.add.image(0, 0, 'gameover').setOrigin(0);
+        let finalScoreText = this.add.text(200, 380, `Score: ${score}`, { fontSize: '32px', fill: '#ffffff' });
+        this.input.on('pointerdown', function() {
+            this.scene.transition({
+                 target: 'menu',
+                 onUpdate: this.transitionOut,
+                 date: {x: 640, y: 480},
+             //game.scene.start('maingame');
+             });
+             game.add.scene(['menu', 'maingame']);
+         }, this);
+    }
+});
+
+let config = {
+    type: Phaser.WebGL,
+    width: 640,
+    height: 480,
+    backgroundColor: '#4682B4', //#061f27',
+    parent: 'phaser-example',
+    scene: [ Menu, MainGame, GameOver ]
+};
+
+let game = new Phaser.Game(config);
